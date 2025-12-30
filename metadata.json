@@ -1,0 +1,7 @@
+{
+  "name": "RizqBook Lead Research Assistant",
+  "description": "A high-end lead generation tool for the RizqBook SaaS, specifically designed to find and analyze local service businesses in Bangladesh using Gemini 2.5 Flash and Google Maps grounding.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
