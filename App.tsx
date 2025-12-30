@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import LeadSearchForm from './components/LeadSearchForm';
 import LeadCardContainer from './components/LeadCardContainer';
@@ -6,6 +7,20 @@ import BulkOutreach from './components/BulkOutreach';
 import { geminiService } from './services/geminiService';
 import { LeadSearchResult, Lead, LeadStatus, LeadPriorityTag, BusinessCategory } from './types';
 
+// Define the AIStudio interface as expected by the environment to ensure type compatibility.
+interface AIStudio {
+  hasSelectedApiKey: () => Promise<boolean>;
+  openSelectKey: () => Promise<void>;
+}
+
+declare global {
+  interface Window {
+    // Property must use the named AIStudio interface and include the optionality modifier
+    // to align with environmental declarations and avoid "identical modifiers" errors.
+    aistudio?: AIStudio;
+  }
+}
+
 const App: React.FC = () => {
   const [results, setResults] = useState<LeadSearchResult | null>(null);
   const [savedLeads, setSavedLeads] = useState<Lead[]>([]);
@@ -13,10 +28,25 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'scan' | 'crm' | 'bulk'>('scan');
   const [displayMode, setDisplayMode] = useState<'grid' | 'map'>('grid');
+  const [hasApiKey, setHasApiKey] = useState<boolean>(true);
 
   // Filters
   const [filterTag, setFilterTag] = useState<LeadPriorityTag | 'ALL'>('ALL');
   const [filterCategory, setFilterCategory] = useState<BusinessCategory | 'ALL'>('ALL');
+
+  useEffect(() => {
+    const checkApiKey = async () => {
+      if (window.aistudio) {
+        try {
+          const hasKey = await window.aistudio.hasSelectedApiKey();
+          setHasApiKey(hasKey);
+        } catch (e) {
+          console.error("Error checking API key status:", e);
+        }
+      }
+    };
+    checkApiKey();
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem('rizqbook_crm');
@@ -29,7 +59,24 @@ const App: React.FC = () => {
     localStorage.setItem('rizqbook_crm', JSON.stringify(savedLeads));
   }, [savedLeads]);
 
+  const handleSelectKey = async () => {
+    if (window.aistudio) {
+      try {
+        await window.aistudio.openSelectKey();
+        setHasApiKey(true); // Assume success per race condition instructions
+        setError(null);
+      } catch (e) {
+        console.error("Error opening key selector:", e);
+      }
+    }
+  };
+
   const handleSearch = async (city: string, radius: number, categories: string[]) => {
+    if (!hasApiKey && window.aistudio) {
+      await handleSelectKey();
+      // Even after selection, we proceed. If it still fails, the error handler will catch it.
+    }
+
     setIsLoading(true);
     setError(null);
     setResults(null);
@@ -44,7 +91,19 @@ const App: React.FC = () => {
       });
       setSavedLeads(merged);
     } catch (err: any) {
-      setError(err.message || "Search failed.");
+      const errMsg = err.message || "Search failed.";
+      setError(errMsg);
+      
+      // Specifically handle the case where the key might be invalid or missing despite selection
+      if (
+        (errMsg.includes("Requested entity was not found") || 
+         errMsg.includes("API Key must be set") || 
+         errMsg.includes("API_KEY_INVALID")) && 
+        window.aistudio
+      ) {
+        setHasApiKey(false);
+        setError("API key issue detected. Please select a valid key from a paid GCP project.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -99,6 +158,23 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-6">
+            {!hasApiKey && window.aistudio && (
+              <div className="flex items-center gap-3">
+                <a 
+                  href="https://ai.google.dev/gemini-api/docs/billing" 
+                  target="_blank" 
+                  className="hidden md:block text-[9px] font-black uppercase text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  Billing Docs
+                </a>
+                <button 
+                  onClick={handleSelectKey}
+                  className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest animate-pulse transition-all shadow-lg shadow-amber-900/20"
+                >
+                  Configure API Key
+                </button>
+              </div>
+            )}
             <nav className="hidden lg:flex bg-slate-900/50 p-1 rounded-xl border border-slate-800">
               <button onClick={() => setActiveView('scan')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'scan' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Discovery</button>
               <button onClick={() => setActiveView('bulk')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'bulk' ? 'bg-red-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Bulk Outreach</button>
@@ -210,8 +286,9 @@ const App: React.FC = () => {
       </main>
 
       {error && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-600/90 text-white px-8 py-4 rounded-2xl font-bold shadow-2xl z-[100] backdrop-blur-md">
-           Error: {error}
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-600/90 text-white px-8 py-4 rounded-2xl font-bold shadow-2xl z-[100] backdrop-blur-md max-w-lg text-center">
+           <p className="text-xs font-black uppercase tracking-widest mb-1">System Notice</p>
+           <p className="text-sm font-medium">{error}</p>
         </div>
       )}
     </div>
