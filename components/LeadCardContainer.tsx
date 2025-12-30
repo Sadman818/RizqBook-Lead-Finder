@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Lead, LeadStatus, LeadPriorityTag } from '../types';
 import LeadCard from './LeadCard';
@@ -46,7 +45,7 @@ const LeadCardContainer: React.FC<LeadCardContainerProps> = ({ leads, onUpdateLe
       )}
 
       {selectedLead && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-6" role="dialog" aria-modal="true">
           <div className="bg-[#0f172a] border border-slate-800 rounded-[3rem] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in duration-300">
             {/* Modal Header */}
             <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 sticky top-0 z-20">
@@ -91,9 +90,24 @@ const LeadCardContainer: React.FC<LeadCardContainerProps> = ({ leads, onUpdateLe
                             <ScoreBar label="Market Maturity" value={selectedLead.scoreBreakdown?.marketMaturity || 0} color="text-amber-400" />
                          </div>
                       </div>
-                      <div className="bg-blue-600/5 p-8 rounded-[2rem] border border-blue-500/20">
-                         <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Strategic Fit</h4>
-                         <p className="text-lg font-medium text-blue-100 leading-relaxed italic">"{selectedLead.whyNeedsRizqBook}"</p>
+                      <div className="space-y-8">
+                         <div className="bg-blue-600/5 p-8 rounded-[2rem] border border-blue-500/20">
+                            <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Strategic Fit</h4>
+                            <p className="text-lg font-medium text-blue-100 leading-relaxed italic">"{selectedLead.whyNeedsRizqBook}"</p>
+                         </div>
+                         
+                         {selectedLead.verifiedReviewSnippets && selectedLead.verifiedReviewSnippets.length > 0 && (
+                           <div className="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-800">
+                              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Verified Customer Context</h4>
+                              <div className="space-y-4">
+                                {selectedLead.verifiedReviewSnippets.map((review, i) => (
+                                  <p key={i} className="text-[11px] text-slate-400 border-l-2 border-blue-500 pl-3 py-1 italic">
+                                    "{review}"
+                                  </p>
+                                ))}
+                              </div>
+                           </div>
+                         )}
                       </div>
                    </div>
 
@@ -118,12 +132,12 @@ const LeadCardContainer: React.FC<LeadCardContainerProps> = ({ leads, onUpdateLe
                       <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
                         <label className="text-[10px] font-black text-green-500 uppercase tracking-widest mb-4 block">WhatsApp (Bangla)</label>
                         <p className="text-slate-300 text-sm leading-relaxed mb-6">{selectedLead.outreachScripts.whatsappBangla}</p>
-                        <button onClick={() => { navigator.clipboard.writeText(selectedLead.outreachScripts.whatsappBangla); alert("Copied!"); }} className="text-[9px] font-black uppercase text-slate-500 hover:text-white">Copy Translation</button>
+                        <button onClick={() => { navigator.clipboard.writeText(selectedLead.outreachScripts.whatsappBangla); alert("Copied!"); }} className="text-[9px] font-black uppercase text-slate-500 hover:text-white transition-colors">Copy Translation</button>
                       </div>
                       <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
                         <label className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-4 block">WhatsApp (English)</label>
                         <p className="text-slate-300 text-sm leading-relaxed mb-6">{selectedLead.outreachScripts.whatsappEnglish}</p>
-                        <button onClick={() => { navigator.clipboard.writeText(selectedLead.outreachScripts.whatsappEnglish); alert("Copied!"); }} className="text-[9px] font-black uppercase text-slate-500 hover:text-white">Copy Script</button>
+                        <button onClick={() => { navigator.clipboard.writeText(selectedLead.outreachScripts.whatsappEnglish); alert("Copied!"); }} className="text-[9px] font-black uppercase text-slate-500 hover:text-white transition-colors">Copy Script</button>
                       </div>
                    </div>
                 </div>
@@ -146,7 +160,7 @@ const LeadCardContainer: React.FC<LeadCardContainerProps> = ({ leads, onUpdateLe
                       </div>
                    </div>
                    <textarea 
-                    className="w-full bg-slate-950 border border-slate-800 rounded-3xl p-6 text-slate-300 min-h-[150px] outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-3xl p-6 text-slate-300 min-h-[150px] outline-none focus:ring-2 focus:ring-blue-600 transition-all"
                     placeholder="Capture meeting notes, owner personality, or follow-up dates..."
                     value={selectedLead.notes}
                     onChange={(e) => onUpdateLead && onUpdateLead({ ...selectedLead, notes: e.target.value })}
@@ -160,12 +174,13 @@ const LeadCardContainer: React.FC<LeadCardContainerProps> = ({ leads, onUpdateLe
                  <a 
                   href={`https://wa.me/${selectedLead.whatsappNumber.replace(/\D/g, '')}`} 
                   target="_blank" 
+                  rel="noopener noreferrer"
                   className="flex-grow py-5 bg-[#25D366] text-white rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest text-center shadow-xl shadow-green-900/20 hover:scale-[1.02] transition-all"
                  >
                    Launch WhatsApp Thread
                  </a>
                )}
-               <button onClick={() => setSelectedLead(null)} className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white">Dismiss</button>
+               <button onClick={() => setSelectedLead(null)} className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors">Dismiss</button>
             </div>
           </div>
         </div>

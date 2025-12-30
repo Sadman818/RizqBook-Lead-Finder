@@ -24,40 +24,31 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, onAction, onStatusChange }) =
       <div className={`absolute -top-20 -right-20 w-40 h-40 rounded-full blur-[80px] transition-opacity duration-700 ${lead.priorityTag === LeadPriorityTag.HOT ? 'bg-red-500/10' : 'bg-blue-500/5'}`}></div>
 
       <div className="flex justify-between items-start mb-6 z-10">
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 flex-grow pr-4">
            <div className="flex items-center gap-2">
               <span className={`text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-md ring-4 ${getTagStyle(lead.priorityTag)}`}>
                 {lead.priorityTag}
               </span>
-              <span className={`text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-400`}>
-                {lead.status}
-              </span>
+              {lead.sourceUri && (
+                <span className="text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  Verified
+                </span>
+              )}
            </div>
-           <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors leading-tight line-clamp-1">
+           <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors leading-tight line-clamp-2 mt-1">
             {lead.businessName}
           </h3>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">{lead.category}</p>
         </div>
 
-        <div className="relative flex items-center justify-center w-14 h-14 bg-slate-900 rounded-2xl border border-slate-800 shadow-inner">
+        <div className="relative flex-shrink-0 flex items-center justify-center w-14 h-14 bg-slate-900 rounded-2xl border border-slate-800 shadow-inner">
            <div className="text-center">
               <p className={`text-lg font-black ${scoreColor}`}>{lead.leadScore}</p>
               <p className="text-[8px] font-black text-slate-600 uppercase tracking-tighter">Score</p>
            </div>
-           {/* Simple circular progress simulation */}
            <svg className="absolute inset-0 w-full h-full -rotate-90">
-             <circle 
-              cx="28" cy="28" r="24" 
-              fill="none" stroke="currentColor" strokeWidth="2" 
-              className="text-slate-800"
-             />
-             <circle 
-              cx="28" cy="28" r="24" 
-              fill="none" stroke="currentColor" strokeWidth="2" 
-              strokeDasharray="150" 
-              strokeDashoffset={150 - (150 * lead.leadScore / 100)}
-              className={scoreColor}
-             />
+             <circle cx="28" cy="28" r="24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-800" />
+             <circle cx="28" cy="28" r="24" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="150" strokeDashoffset={150 - (150 * lead.leadScore / 100)} className={scoreColor} />
            </svg>
         </div>
       </div>
@@ -66,7 +57,7 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, onAction, onStatusChange }) =
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-slate-900/50 p-3 rounded-2xl border border-slate-800/50">
              <p className="text-[9px] font-bold text-slate-600 uppercase mb-1">Booking Detection</p>
-             <p className="text-xs font-bold text-blue-100 flex items-center gap-1.5">
+             <p className="text-xs font-bold text-blue-100 flex items-center gap-1.5 truncate">
                {lead.isManualBooking ? (
                  <><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Manual</>
                ) : (
@@ -100,13 +91,26 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, onAction, onStatusChange }) =
         <button 
           onClick={() => onAction(lead)}
           className="flex-grow py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl text-[11px] uppercase tracking-widest shadow-xl shadow-blue-900/20 transition-all active:scale-95"
+          aria-label={`View full details for ${lead.businessName}`}
         >
           View Full Insight
         </button>
+        {lead.sourceUri && (
+           <a 
+            href={lead.sourceUri}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl border border-slate-700 transition-all"
+            title="View on Google Maps"
+           >
+             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+           </a>
+        )}
         {lead.phoneNumber && (
            <a 
             href={`tel:${lead.phoneNumber}`}
             className="p-3.5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl border border-slate-700 transition-all"
+            title="Call business"
            >
              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
            </a>

@@ -36,6 +36,7 @@ export interface OutreachScripts {
 export interface GroundingSource {
   title: string;
   uri: string;
+  reviewSnippets?: string[];
 }
 
 export interface Lead {
@@ -57,6 +58,8 @@ export interface Lead {
   linkedinHandle?: string;
   businessHours: string;
   isClaimed: boolean;
+  sourceUri?: string; // Direct link to Maps
+  verifiedReviewSnippets?: string[];
   
   // Owner Details
   ownerName?: string;
