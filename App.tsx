@@ -159,9 +159,9 @@ const App: React.FC = () => {
                 <div className="absolute right-0 mt-4 w-[22rem] bg-[#0f172a] border border-slate-800 rounded-[2.5rem] shadow-2xl p-6 z-[70] animate-in slide-in-from-top-2 duration-200">
                   <div className="space-y-6">
                     {/* OPTION BOX 1: ENGINE CORE */}
-                    <div className="bg-slate-900/50 p-5 rounded-3xl border border-slate-800">
+                    <div className="bg-slate-900/50 p-5 rounded-3xl border border-slate-800 shadow-inner">
                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Engine Core
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span> Option Box 1: Engine Core
                       </h4>
                       <div className="space-y-4">
                         <div>
@@ -169,25 +169,25 @@ const App: React.FC = () => {
                           <select 
                             value={selectedModel}
                             onChange={(e) => setSelectedModel(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-300 outline-none focus:ring-1 focus:ring-blue-600"
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-300 outline-none focus:ring-1 focus:ring-blue-600 appearance-none"
                           >
-                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommended)</option>
                             <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
                           </select>
                         </div>
                         <button 
                           onClick={() => { handleSelectKey(); setShowSettings(false); }}
-                          className={`w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${hasApiKey ? 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white' : 'bg-amber-600 text-white shadow-lg shadow-amber-900/20 animate-pulse'}`}
+                          className={`w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${hasApiKey ? 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white hover:bg-slate-750' : 'bg-amber-600 text-white shadow-lg shadow-amber-900/20 animate-pulse'}`}
                         >
-                          {hasApiKey ? 'Update API Credentials' : 'Connect API Key'}
+                          {hasApiKey ? 'Update API Credentials' : 'Connect Account Key'}
                         </button>
                       </div>
                     </div>
 
                     {/* OPTION BOX 2: ADVANCED INTELLIGENCE */}
-                    <div className="bg-slate-900/50 p-5 rounded-3xl border border-slate-800">
+                    <div className="bg-slate-900/50 p-5 rounded-3xl border border-slate-800 shadow-inner">
                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span> Expert Intelligence
+                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]"></span> Option Box 2: Expert Intelligence
                       </h4>
                       <div className="space-y-5">
                         <div>
@@ -195,7 +195,7 @@ const App: React.FC = () => {
                           <select 
                             value={selectedPersona}
                             onChange={(e) => setSelectedPersona(e.target.value as StrategyPersona)}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-300 outline-none focus:ring-1 focus:ring-purple-600"
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-300 outline-none focus:ring-1 focus:ring-purple-600 appearance-none"
                           >
                             {Object.values(StrategyPersona).map(p => (
                               <option key={p} value={p}>{p}</option>
@@ -205,8 +205,8 @@ const App: React.FC = () => {
 
                         <div>
                           <div className="flex justify-between items-center mb-2">
-                            <label className="text-[9px] font-black text-slate-600 uppercase block">Logic Depth</label>
-                            <span className="text-[8px] font-black bg-slate-800 px-2 py-0.5 rounded text-purple-400">
+                            <label className="text-[9px] font-black text-slate-600 uppercase block">Logic Depth (Thinking)</label>
+                            <span className="text-[8px] font-black bg-slate-800 px-2 py-0.5 rounded text-purple-400 border border-purple-500/20">
                               {thinkingBudget === 0 ? 'FAST' : thinkingBudget <= 12000 ? 'BALANCED' : 'DEEP'}
                             </span>
                           </div>
@@ -219,7 +219,13 @@ const App: React.FC = () => {
                             onChange={(e) => setThinkingBudget(parseInt(e.target.value))}
                             className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-600"
                           />
-                          <p className="text-[7px] text-slate-600 mt-2 italic">Deeper logic improves technical gap detection.</p>
+                          <div className="flex justify-between mt-2">
+                             <span className="text-[7px] text-slate-600 font-bold">MINIMAL</span>
+                             <span className="text-[7px] text-slate-600 font-bold">MAXIMAL</span>
+                          </div>
+                          <p className="text-[7px] text-slate-600 mt-2 italic leading-relaxed">
+                            Deep reasoning improves software detection but increases latency.
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -229,12 +235,12 @@ const App: React.FC = () => {
             </div>
 
             <nav className="hidden lg:flex bg-slate-900/50 p-1 rounded-xl border border-slate-800">
-              <button onClick={() => setActiveView('scan')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'scan' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Discovery</button>
-              <button onClick={() => setActiveView('bulk')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'bulk' ? 'bg-red-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Bulk Outreach</button>
-              <button onClick={() => setActiveView('crm')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'crm' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>CRM ({savedLeads.length})</button>
+              <button onClick={() => setActiveView('scan')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'scan' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-500 hover:text-slate-300'}`}>Discovery</button>
+              <button onClick={() => setActiveView('bulk')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'bulk' ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}>Bulk Outreach</button>
+              <button onClick={() => setActiveView('crm')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'crm' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-500 hover:text-slate-300'}`}>CRM ({savedLeads.length})</button>
             </nav>
             <div className="h-8 w-px bg-slate-800"></div>
-            <button onClick={exportToCSV} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-700">Export</button>
+            <button onClick={exportToCSV} className="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-700 active:scale-95 transition-all">Export</button>
           </div>
         </div>
       </header>
@@ -292,7 +298,7 @@ const App: React.FC = () => {
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-pulse">
-            {[1,2,3].map(i => <div key={i} className="h-96 bg-slate-900 rounded-[2rem] border border-slate-800"></div>)}
+            {[1,2,3,4,5,6].map(i => <div key={i} className="h-96 bg-slate-900 rounded-[2rem] border border-slate-800"></div>)}
           </div>
         ) : (
           <div className="space-y-16">
@@ -336,8 +342,8 @@ const App: React.FC = () => {
       </main>
 
       {error && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-600/90 text-white px-8 py-4 rounded-2xl font-bold shadow-2xl z-[100] backdrop-blur-md max-w-lg text-center">
-           <p className="text-xs font-black uppercase tracking-widest mb-1">System Notice</p>
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-600/90 text-white px-8 py-4 rounded-2xl font-bold shadow-2xl z-[100] backdrop-blur-md max-w-lg text-center border border-white/20">
+           <p className="text-xs font-black uppercase tracking-widest mb-1">System Exception</p>
            <p className="text-sm font-medium">{error}</p>
         </div>
       )}

@@ -3,10 +3,40 @@ import { LeadSearchResult, LeadPriorityTag, LeadStatus, GroundingSource, Strateg
 
 export class GeminiService {
   /**
+   * Robust utility to extract and clean JSON from model output.
+   * Handles markdown blocks, trailing commas, and common LLM-generated JSON issues.
+   */
+  private sanitizeJSON(text: string): string {
+    try {
+      // 1. Find the first '{' and the last '}'
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      
+      if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
+        return "";
+      }
+
+      let jsonPart = text.substring(firstBrace, lastBrace + 1);
+
+      // 2. Remove comments (single line and multi-line)
+      jsonPart = jsonPart.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
+
+      // 3. Fix trailing commas in objects and arrays
+      // Matches a comma followed by closing brace or bracket, potentially with whitespace/newlines
+      jsonPart = jsonPart.replace(/,\s*([}\]])/g, '$1');
+
+      // 4. Basic check for unquoted keys (though rare with modern Gemini models)
+      // jsonPart = jsonPart.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+
+      return jsonPart;
+    } catch (e) {
+      console.error("Sanitization failed:", e);
+      return "";
+    }
+  }
+
+  /**
    * Fetches leads using the Google GenAI SDK with Maps Grounding.
-   * @param modelName The specific model name to use for generation
-   * @param thinkingBudget Reasoning token budget
-   * @param persona The strategy style to use for the analysis
    */
   async fetchLeads(
     location: string, 
@@ -21,7 +51,7 @@ export class GeminiService {
     const personaInstruction = persona === StrategyPersona.SALES 
       ? "Your tone is high-urgency and focused on missed revenue. Outreach scripts should be bold and focus on 'Stop losing money today'."
       : persona === StrategyPersona.CONSULTATIVE 
-      ? "Your tone is empathetic and focused on operational efficiency and customer experience. Outreach should be 'How can we help your staff succeed'."
+      ? "Your tone is empathetic and focused on operational efficiency. Outreach should be 'How can we help your staff succeed'."
       : "Your tone is professional and objective, focused on market data and technical gaps.";
 
     const prompt = `
@@ -36,17 +66,23 @@ export class GeminiService {
       Use the Google Maps tool to find real, existing service-based businesses in ${location}.
       Focus on identifying businesses with high review counts but likely manual booking processes (WhatsApp/Phone based).
 
-      FOR EACH BUSINESS (Return at least 5-8 leads if available):
+      FOR EACH BUSINESS (Return at least 8-10 leads if available):
       1. Basic: businessName, category, fullAddress, city, lat/lng, phone, googleMapsRating, totalReviews.
       2. Status: isClaimed (Boolean), businessHours.
       3. Booking Tech Analysis: Determine if they use software like Zenoti, Fresha, or if they are manual (WhatsApp-based).
       4. Scoring: leadScore (0-100), priorityTag (HOT/WARM/COLD).
-      5. Pain Points: Identify 3 specific reasons why they need an automated booking system (e.g., "High call volume causing missed appointments").
+      5. Pain Points: Identify 3 specific reasons why they need an automated booking system.
       6. Sales Intelligence: ownerName (if detectable), suggestedPlan ("Basic" | "Pro" | "Premium").
-      7. Scripts: Multi-lingual (Bangla/English) outreach scripts tailored to the ${persona} persona.
+      7. Scripts: Multi-lingual (Bangla/English) outreach scripts.
+
+      CRITICAL FOR JSON VALIDITY:
+      - Return valid JSON only.
+      - DO NOT include comments like // or /* */.
+      - DO NOT include trailing commas after the last item in arrays or objects.
+      - Use double quotes for all keys and strings.
+      - Ensure the JSON is complete and not truncated.
 
       OUTPUT FORMAT:
-      Return valid JSON in the following structure:
       {
         "leads": [ { ...leadSchema } ],
         "analysis": {
@@ -58,8 +94,6 @@ export class GeminiService {
           "categoryDistribution": { "Category": count }
         }
       }
-
-      ONLY return the JSON object. Do not include markdown or explanations.
     `;
 
     try {
@@ -73,12 +107,15 @@ export class GeminiService {
       });
 
       const text = response.text || "";
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const cleanedJson = this.sanitizeJSON(text);
       
-      if (!jsonMatch) throw new Error("Could not parse lead data from response.");
+      if (!cleanedJson) {
+        throw new Error("The AI model returned an invalid structure. Please try again or increase Logic Depth.");
+      }
       
-      const data = JSON.parse(jsonMatch[0]);
+      const data = JSON.parse(cleanedJson);
 
+      // Extract detailed grounding metadata
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
       const sources: GroundingSource[] = [];
       
@@ -99,6 +136,7 @@ export class GeminiService {
         });
       }
 
+      // Map leads and attach potential source info
       data.leads = (data.leads || []).map((l: any, idx: number) => {
         const matchingSource = sources.find(s => 
           s.title.toLowerCase().includes(l.businessName.toLowerCase()) || 
@@ -109,10 +147,10 @@ export class GeminiService {
           ...l,
           id: l.id || `lead-${Date.now()}-${idx}`,
           status: LeadStatus.NEW,
-          notes: "",
+          notes: l.notes || "",
           savedAt: Date.now(),
           sourceUri: matchingSource?.uri || l.sourceUri,
-          verifiedReviewSnippets: matchingSource?.reviewSnippets || []
+          verifiedReviewSnippets: matchingSource?.reviewSnippets || l.verifiedReviewSnippets || []
         };
       });
 
@@ -124,7 +162,10 @@ export class GeminiService {
 
     } catch (error: any) {
       console.error("Gemini Service Error:", error);
-      throw new Error(error.message || "Failed to extract business leads. Please try again.");
+      if (error instanceof SyntaxError) {
+        throw new Error("Data structure received from AI was malformed. Try a simpler area or adjust Logic Depth.");
+      }
+      throw new Error(error.message || "Failed to extract leads. Please check your connection or API key.");
     }
   }
 }
