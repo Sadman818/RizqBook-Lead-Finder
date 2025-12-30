@@ -4,7 +4,7 @@ import LeadCardContainer from './components/LeadCardContainer';
 import AnalysisView from './components/AnalysisView';
 import BulkOutreach from './components/BulkOutreach';
 import { geminiService } from './services/geminiService';
-import { LeadSearchResult, Lead, LeadStatus, LeadPriorityTag, BusinessCategory } from './types';
+import { LeadSearchResult, Lead, LeadStatus, LeadPriorityTag, BusinessCategory, StrategyPersona } from './types';
 
 const App: React.FC = () => {
   const [results, setResults] = useState<LeadSearchResult | null>(null);
@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [hasApiKey, setHasApiKey] = useState<boolean>(true);
   const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash');
   const [thinkingBudget, setThinkingBudget] = useState<number>(0);
+  const [selectedPersona, setSelectedPersona] = useState<StrategyPersona>(StrategyPersona.STANDARD);
   const [showSettings, setShowSettings] = useState(false);
 
   // Filters
@@ -71,7 +72,7 @@ const App: React.FC = () => {
     setError(null);
     setResults(null);
     try {
-      const data = await geminiService.fetchLeads(city, radius, categories, selectedModel, thinkingBudget);
+      const data = await geminiService.fetchLeads(city, radius, categories, selectedModel, thinkingBudget, selectedPersona);
       setResults(data);
       setActiveView('scan');
       
@@ -132,7 +133,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200">
-      {/* Header */}
       <header className="bg-[#020617]/80 backdrop-blur-xl border-b border-slate-800 sticky top-0 z-[60]">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -156,55 +156,72 @@ const App: React.FC = () => {
               </button>
 
               {showSettings && (
-                <div className="absolute right-0 mt-4 w-80 bg-[#0f172a] border border-slate-800 rounded-3xl shadow-2xl p-6 z-[70] animate-in slide-in-from-top-2 duration-200">
-                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">AI Engine Config</h4>
-                  
+                <div className="absolute right-0 mt-4 w-[22rem] bg-[#0f172a] border border-slate-800 rounded-[2.5rem] shadow-2xl p-6 z-[70] animate-in slide-in-from-top-2 duration-200">
                   <div className="space-y-6">
-                    <div>
-                      <label className="text-[9px] font-black text-slate-600 uppercase mb-2 block">Inference Model</label>
-                      <select 
-                        value={selectedModel}
-                        onChange={(e) => setSelectedModel(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-300 outline-none focus:ring-1 focus:ring-blue-600"
-                      >
-                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Balanced)</option>
-                        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Speed)</option>
-                      </select>
+                    {/* OPTION BOX 1: ENGINE CORE */}
+                    <div className="bg-slate-900/50 p-5 rounded-3xl border border-slate-800">
+                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Engine Core
+                      </h4>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-[9px] font-black text-slate-600 uppercase mb-2 block">Inference Model</label>
+                          <select 
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-300 outline-none focus:ring-1 focus:ring-blue-600"
+                          >
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                          </select>
+                        </div>
+                        <button 
+                          onClick={() => { handleSelectKey(); setShowSettings(false); }}
+                          className={`w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${hasApiKey ? 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white' : 'bg-amber-600 text-white shadow-lg shadow-amber-900/20 animate-pulse'}`}
+                        >
+                          {hasApiKey ? 'Update API Credentials' : 'Connect API Key'}
+                        </button>
+                      </div>
                     </div>
 
-                    <div>
-                      <div className="flex justify-between items-center mb-3">
-                        <label className="text-[9px] font-black text-slate-600 uppercase block">AI Logic Depth</label>
-                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${thinkingBudget > 12000 ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-                          {thinkingBudget === 0 ? 'FAST' : thinkingBudget <= 12000 ? 'BALANCED' : 'DEEP'}
-                        </span>
-                      </div>
-                      <input 
-                        type="range"
-                        min="0"
-                        max="24576"
-                        step="1024"
-                        value={thinkingBudget}
-                        onChange={(e) => setThinkingBudget(parseInt(e.target.value))}
-                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                      />
-                      <div className="flex justify-between mt-2 text-[8px] font-black text-slate-600 uppercase">
-                        <span>Speed</span>
-                        <span>Reasoning</span>
-                      </div>
-                      <p className="text-[8px] text-slate-500 mt-2 italic leading-relaxed">
-                        High reasoning helps identify software use cases from review patterns.
-                      </p>
-                    </div>
+                    {/* OPTION BOX 2: ADVANCED INTELLIGENCE */}
+                    <div className="bg-slate-900/50 p-5 rounded-3xl border border-slate-800">
+                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span> Expert Intelligence
+                      </h4>
+                      <div className="space-y-5">
+                        <div>
+                          <label className="text-[9px] font-black text-slate-600 uppercase mb-2 block">Strategy Persona</label>
+                          <select 
+                            value={selectedPersona}
+                            onChange={(e) => setSelectedPersona(e.target.value as StrategyPersona)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-300 outline-none focus:ring-1 focus:ring-purple-600"
+                          >
+                            {Object.values(StrategyPersona).map(p => (
+                              <option key={p} value={p}>{p}</option>
+                            ))}
+                          </select>
+                        </div>
 
-                    <div className="pt-4 border-t border-slate-800">
-                      <label className="text-[9px] font-black text-slate-600 uppercase mb-3 block">Authentication</label>
-                      <button 
-                        onClick={() => { handleSelectKey(); setShowSettings(false); }}
-                        className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${hasApiKey ? 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white' : 'bg-amber-600 text-white shadow-lg shadow-amber-900/20 animate-pulse'}`}
-                      >
-                        {hasApiKey ? 'Update API Key' : 'Connect Account'}
-                      </button>
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="text-[9px] font-black text-slate-600 uppercase block">Logic Depth</label>
+                            <span className="text-[8px] font-black bg-slate-800 px-2 py-0.5 rounded text-purple-400">
+                              {thinkingBudget === 0 ? 'FAST' : thinkingBudget <= 12000 ? 'BALANCED' : 'DEEP'}
+                            </span>
+                          </div>
+                          <input 
+                            type="range"
+                            min="0"
+                            max="24576"
+                            step="1024"
+                            value={thinkingBudget}
+                            onChange={(e) => setThinkingBudget(parseInt(e.target.value))}
+                            className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                          />
+                          <p className="text-[7px] text-slate-600 mt-2 italic">Deeper logic improves technical gap detection.</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -223,7 +240,6 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 mt-12 space-y-12 pb-32">
-        {/* Dynamic Timing Banner */}
         <div className={`p-4 rounded-2xl border flex items-center justify-between px-8 transition-all ${isOptimalTime ? 'bg-blue-600/10 border-blue-500/20 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
            <div className="flex items-center gap-4">
               <div className={`w-2 h-2 rounded-full animate-pulse ${isOptimalTime ? 'bg-blue-500' : 'bg-slate-600'}`}></div>
@@ -240,7 +256,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Filters & View Switcher */}
         {(results || activeView === 'crm') && activeView !== 'bulk' && (
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-900/40 p-6 rounded-[2rem] border border-slate-800">
             <div className="flex flex-wrap items-center gap-4">
@@ -275,7 +290,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Content Area */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-pulse">
             {[1,2,3].map(i => <div key={i} className="h-96 bg-slate-900 rounded-[2rem] border border-slate-800"></div>)}

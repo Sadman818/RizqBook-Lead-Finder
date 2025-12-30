@@ -1,26 +1,36 @@
 import { GoogleGenAI } from "@google/genai";
-import { LeadSearchResult, LeadPriorityTag, LeadStatus, GroundingSource } from "../types";
+import { LeadSearchResult, LeadPriorityTag, LeadStatus, GroundingSource, StrategyPersona } from "../types";
 
 export class GeminiService {
   /**
    * Fetches leads using the Google GenAI SDK with Maps Grounding.
    * @param modelName The specific model name to use for generation
-   * @param thinkingBudget Reasoning token budget (Gemini 2.5 series supports up to 24576)
+   * @param thinkingBudget Reasoning token budget
+   * @param persona The strategy style to use for the analysis
    */
   async fetchLeads(
     location: string, 
     radius: number, 
     categories: string[], 
     modelName: string = "gemini-2.5-flash",
-    thinkingBudget: number = 0
+    thinkingBudget: number = 0,
+    persona: StrategyPersona = StrategyPersona.STANDARD
   ): Promise<LeadSearchResult> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    const personaInstruction = persona === StrategyPersona.SALES 
+      ? "Your tone is high-urgency and focused on missed revenue. Outreach scripts should be bold and focus on 'Stop losing money today'."
+      : persona === StrategyPersona.CONSULTATIVE 
+      ? "Your tone is empathetic and focused on operational efficiency and customer experience. Outreach should be 'How can we help your staff succeed'."
+      : "Your tone is professional and objective, focused on market data and technical gaps.";
 
     const prompt = `
       Act as the Ultra-High-End Lead Intelligence Engine for RizqBook.
       Search Location: ${location}, Bangladesh.
       Scan Radius: ${radius}km.
       Market Verticals: ${categories.join(", ")}.
+      Current Strategy Persona: ${persona}.
+      ${personaInstruction}
 
       INSTRUCTIONS:
       Use the Google Maps tool to find real, existing service-based businesses in ${location}.
@@ -33,7 +43,7 @@ export class GeminiService {
       4. Scoring: leadScore (0-100), priorityTag (HOT/WARM/COLD).
       5. Pain Points: Identify 3 specific reasons why they need an automated booking system (e.g., "High call volume causing missed appointments").
       6. Sales Intelligence: ownerName (if detectable), suggestedPlan ("Basic" | "Pro" | "Premium").
-      7. Scripts: Multi-lingual (Bangla/English) outreach scripts.
+      7. Scripts: Multi-lingual (Bangla/English) outreach scripts tailored to the ${persona} persona.
 
       OUTPUT FORMAT:
       Return valid JSON in the following structure:
@@ -57,9 +67,7 @@ export class GeminiService {
         model: modelName,
         contents: prompt,
         config: {
-          // Maps grounding is only supported in Gemini 2.5 series models.
           tools: [{ googleMaps: {} }],
-          // Thinking config enables internal reasoning for more complex extraction logic.
           thinkingConfig: { thinkingBudget: thinkingBudget }
         },
       });
@@ -71,7 +79,6 @@ export class GeminiService {
       
       const data = JSON.parse(jsonMatch[0]);
 
-      // Extract detailed grounding metadata
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
       const sources: GroundingSource[] = [];
       
@@ -92,7 +99,6 @@ export class GeminiService {
         });
       }
 
-      // Map leads and attach potential source info
       data.leads = (data.leads || []).map((l: any, idx: number) => {
         const matchingSource = sources.find(s => 
           s.title.toLowerCase().includes(l.businessName.toLowerCase()) || 

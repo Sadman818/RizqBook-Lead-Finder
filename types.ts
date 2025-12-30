@@ -11,6 +11,12 @@ export enum BusinessCategory {
   GYM = "Fitness Center / Gym"
 }
 
+export enum StrategyPersona {
+  STANDARD = "Standard Researcher",
+  SALES = "Aggressive Sales",
+  CONSULTATIVE = "Consultative Growth"
+}
+
 export enum LeadStatus {
   NEW = "New",
   CONTACTED = "Contacted",
