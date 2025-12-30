@@ -3,6 +3,7 @@ import LeadSearchForm from './components/LeadSearchForm';
 import LeadCardContainer from './components/LeadCardContainer';
 import AnalysisView from './components/AnalysisView';
 import BulkOutreach from './components/BulkOutreach';
+import MarketStrategist from './components/MarketStrategist';
 import { geminiService } from './services/geminiService';
 import { LeadSearchResult, Lead, LeadStatus, LeadPriorityTag, BusinessCategory, StrategyPersona } from './types';
 
@@ -17,7 +18,9 @@ const App: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash');
   const [thinkingBudget, setThinkingBudget] = useState<number>(0);
   const [selectedPersona, setSelectedPersona] = useState<StrategyPersona>(StrategyPersona.STANDARD);
+  const [customLogic, setCustomLogic] = useState<string>('');
   const [showSettings, setShowSettings] = useState(false);
+  const [isStrategistOpen, setIsStrategistOpen] = useState(false);
 
   // Filters
   const [filterTag, setFilterTag] = useState<LeadPriorityTag | 'ALL'>('ALL');
@@ -72,7 +75,7 @@ const App: React.FC = () => {
     setError(null);
     setResults(null);
     try {
-      const data = await geminiService.fetchLeads(city, radius, categories, selectedModel, thinkingBudget, selectedPersona);
+      const data = await geminiService.fetchLeads(city, radius, categories, selectedModel, thinkingBudget, selectedPersona, customLogic);
       setResults(data);
       setActiveView('scan');
       
@@ -84,13 +87,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       const errMsg = err.message || "Search failed.";
       setError(errMsg);
-      
-      if (
-        (errMsg.includes("Requested entity was not found") || 
-         errMsg.includes("API Key must be set") || 
-         errMsg.includes("API_KEY_INVALID")) && 
-        (window as any).aistudio
-      ) {
+      if ((errMsg.includes("Requested entity was not found") || errMsg.includes("API Key must be set") || errMsg.includes("API_KEY_INVALID")) && (window as any).aistudio) {
         setHasApiKey(false);
         setError("API key issue detected. Please select a valid key from a paid GCP project.");
       }
@@ -156,9 +153,8 @@ const App: React.FC = () => {
               </button>
 
               {showSettings && (
-                <div className="absolute right-0 mt-4 w-[22rem] bg-[#0f172a] border border-slate-800 rounded-[2.5rem] shadow-2xl p-6 z-[70] animate-in slide-in-from-top-2 duration-200">
+                <div className="absolute right-0 mt-4 w-[24rem] bg-[#0f172a] border border-slate-800 rounded-[2.5rem] shadow-2xl p-6 z-[70] animate-in slide-in-from-top-2 duration-200">
                   <div className="space-y-6">
-                    {/* OPTION BOX 1: ENGINE CORE */}
                     <div className="bg-slate-900/50 p-5 rounded-3xl border border-slate-800 shadow-inner">
                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span> Option Box 1: Engine Core
@@ -183,8 +179,6 @@ const App: React.FC = () => {
                         </button>
                       </div>
                     </div>
-
-                    {/* OPTION BOX 2: ADVANCED INTELLIGENCE */}
                     <div className="bg-slate-900/50 p-5 rounded-3xl border border-slate-800 shadow-inner">
                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]"></span> Option Box 2: Expert Intelligence
@@ -202,7 +196,15 @@ const App: React.FC = () => {
                             ))}
                           </select>
                         </div>
-
+                        <div>
+                          <label className="text-[9px] font-black text-slate-600 uppercase mb-2 block">Custom AI Logic Directive</label>
+                          <textarea 
+                            value={customLogic}
+                            onChange={(e) => setCustomLogic(e.target.value)}
+                            placeholder="e.g. Focus on luxury salons with high phone traffic..."
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-[11px] text-slate-300 outline-none focus:ring-1 focus:ring-purple-600 min-h-[60px] resize-none leading-relaxed"
+                          />
+                        </div>
                         <div>
                           <div className="flex justify-between items-center mb-2">
                             <label className="text-[9px] font-black text-slate-600 uppercase block">Logic Depth (Thinking)</label>
@@ -219,13 +221,6 @@ const App: React.FC = () => {
                             onChange={(e) => setThinkingBudget(parseInt(e.target.value))}
                             className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-600"
                           />
-                          <div className="flex justify-between mt-2">
-                             <span className="text-[7px] text-slate-600 font-bold">MINIMAL</span>
-                             <span className="text-[7px] text-slate-600 font-bold">MAXIMAL</span>
-                          </div>
-                          <p className="text-[7px] text-slate-600 mt-2 italic leading-relaxed">
-                            Deep reasoning improves software detection but increases latency.
-                          </p>
                         </div>
                       </div>
                     </div>
@@ -284,7 +279,6 @@ const App: React.FC = () => {
                 {Object.values(BusinessCategory).map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-
             <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
                <button onClick={() => setDisplayMode('grid')} className={`p-2 rounded-lg transition-all ${displayMode === 'grid' ? 'bg-slate-800 text-blue-400' : 'text-slate-600'}`}>
                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
@@ -314,32 +308,36 @@ const App: React.FC = () => {
                  <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #1e293b 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
                  <div className="relative z-10 text-center p-8">
                    <h3 className="text-2xl font-black text-white mb-4">Discovery Radar Layer</h3>
-                   <p className="text-slate-500 text-sm max-w-sm mx-auto">Interactive opportunity mapping for {results?.leads.length || filteredLeads.length} leads in the target area.</p>
                    <div className="mt-8 flex flex-wrap justify-center gap-4">
                       {filteredLeads.slice(0, 15).map((l, i) => (
-                        <div 
-                          key={i} 
-                          className={`w-10 h-10 rounded-2xl border-2 flex items-center justify-center font-bold text-[10px] cursor-pointer hover:scale-125 transition-all shadow-xl ${l.priorityTag === LeadPriorityTag.HOT ? 'bg-red-600 border-red-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                          title={l.businessName}
-                          style={{ 
-                            position: 'absolute', 
-                            left: `${(l.longitude % 1) * 800 + 100}px`, 
-                            top: `${(l.latitude % 1) * 400 + 100}px` 
-                          }}
-                        >
+                        <div key={i} className={`w-10 h-10 rounded-2xl border-2 flex items-center justify-center font-bold text-[10px] cursor-pointer hover:scale-125 transition-all shadow-xl ${l.priorityTag === LeadPriorityTag.HOT ? 'bg-red-600 border-red-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`} style={{ position: 'absolute', left: `${(l.longitude % 1) * 800 + 100}px`, top: `${(l.latitude % 1) * 400 + 100}px` }}>
                           {l.businessName.charAt(0)}
                         </div>
                       ))}
                    </div>
-                 </div>
-                 <div className="absolute bottom-6 right-6 bg-slate-950/80 backdrop-blur px-4 py-2 rounded-xl border border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                   Bangladesh Opportunity Density Map
                  </div>
               </div>
             )}
           </div>
         )}
       </main>
+
+      {/* Floating Strategist Button */}
+      {(results || savedLeads.length > 0) && (
+        <button 
+          onClick={() => setIsStrategistOpen(true)}
+          className="fixed bottom-8 right-8 w-14 h-14 bg-purple-600 rounded-2xl shadow-2xl shadow-purple-900/40 flex items-center justify-center text-white hover:bg-purple-500 hover:scale-110 transition-all z-[80]"
+        >
+          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </button>
+      )}
+
+      <MarketStrategist 
+        leads={results?.leads || savedLeads} 
+        analysis={results?.analysis || null} 
+        isOpen={isStrategistOpen} 
+        onClose={() => setIsStrategistOpen(false)} 
+      />
 
       {error && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-600/90 text-white px-8 py-4 rounded-2xl font-bold shadow-2xl z-[100] backdrop-blur-md max-w-lg text-center border border-white/20">

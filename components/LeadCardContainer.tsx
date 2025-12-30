@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Lead, LeadStatus, LeadPriorityTag } from '../types';
 import LeadCard from './LeadCard';
+import { geminiService } from '../services/geminiService';
 
 interface LeadCardContainerProps {
   leads: Lead[];
@@ -9,13 +10,29 @@ interface LeadCardContainerProps {
 
 const LeadCardContainer: React.FC<LeadCardContainerProps> = ({ leads, onUpdateLead }) => {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [activeTab, setActiveTab] = useState<'insights' | 'outreach' | 'admin'>('insights');
+  const [activeTab, setActiveTab] = useState<'insights' | 'outreach' | 'admin' | 'intelligence'>('insights');
+  const [deepIntel, setDeepIntel] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const updateStatus = (status: LeadStatus) => {
     if (!selectedLead || !onUpdateLead) return;
     const updated = { ...selectedLead, status };
     setSelectedLead(updated);
     onUpdateLead(updated);
+  };
+
+  const generateDeepIntel = async () => {
+    if (!selectedLead) return;
+    setIsAnalyzing(true);
+    setDeepIntel(null);
+    try {
+      const result = await geminiService.deepAnalyzeLead(selectedLead);
+      setDeepIntel(result);
+    } catch (e) {
+      setDeepIntel("Analysis failed. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const ScoreBar = ({ label, value, color }: { label: string, value: number, color: string }) => (
@@ -39,7 +56,7 @@ const LeadCardContainer: React.FC<LeadCardContainerProps> = ({ leads, onUpdateLe
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {leads.map((lead) => (
-            <LeadCard key={lead.id} lead={lead} onAction={(l) => { setSelectedLead(l); setActiveTab('insights'); }} />
+            <LeadCard key={lead.id} lead={lead} onAction={(l) => { setSelectedLead(l); setActiveTab('insights'); setDeepIntel(null); }} />
           ))}
         </div>
       )}
@@ -47,7 +64,6 @@ const LeadCardContainer: React.FC<LeadCardContainerProps> = ({ leads, onUpdateLe
       {selectedLead && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-6" role="dialog" aria-modal="true">
           <div className="bg-[#0f172a] border border-slate-800 rounded-[3rem] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in duration-300">
-            {/* Modal Header */}
             <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 sticky top-0 z-20">
               <div className="flex items-center gap-6">
                  <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-900/40 transform -rotate-2">
@@ -63,15 +79,14 @@ const LeadCardContainer: React.FC<LeadCardContainerProps> = ({ leads, onUpdateLe
               </button>
             </div>
 
-            {/* Navigation */}
             <div className="flex bg-slate-900/20 px-8 border-b border-slate-800">
-               {['insights', 'outreach', 'admin'].map((t) => (
+               {['insights', 'intelligence', 'outreach', 'admin'].map((t) => (
                  <button 
                   key={t} 
-                  onClick={() => setActiveTab(t as any)} 
+                  onClick={() => { setActiveTab(t as any); if(t === 'intelligence' && !deepIntel) generateDeepIntel(); }} 
                   className={`px-6 py-5 text-[10px] font-black uppercase tracking-widest relative ${activeTab === t ? 'text-blue-500' : 'text-slate-500'}`}
                  >
-                   {t}
+                   {t === 'intelligence' ? 'Gemini Intel' : t}
                    {activeTab === t && <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-full"></div>}
                  </button>
                ))}
@@ -119,6 +134,43 @@ const LeadCardContainer: React.FC<LeadCardContainerProps> = ({ leads, onUpdateLe
                         </div>
                       ))}
                    </div>
+                </div>
+              )}
+
+              {activeTab === 'intelligence' && (
+                <div className="space-y-8 h-full min-h-[400px]">
+                   {isAnalyzing ? (
+                     <div className="h-full flex flex-col items-center justify-center space-y-6">
+                        <div className="w-16 h-16 relative">
+                           <div className="absolute inset-0 bg-blue-600/20 rounded-full animate-ping"></div>
+                           <div className="relative bg-slate-900 w-full h-full rounded-2xl border border-slate-700 flex items-center justify-center">
+                              <svg className="w-8 h-8 text-blue-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                           </div>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Activating Gemini 3 Pro reasoning...</p>
+                          <p className="text-[10px] text-blue-400 mt-2 italic">Synthesizing market positioning and ROI projections.</p>
+                        </div>
+                     </div>
+                   ) : deepIntel ? (
+                     <div className="prose prose-invert max-w-none bg-slate-900/40 p-10 rounded-[3rem] border border-slate-800 leading-relaxed text-slate-300">
+                        <h4 className="text-blue-500 font-black uppercase text-xs tracking-widest mb-6 border-b border-slate-800 pb-4 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/></svg>
+                          Executive Intelligence Report
+                        </h4>
+                        <div className="whitespace-pre-wrap">{deepIntel}</div>
+                        <button 
+                          onClick={generateDeepIntel}
+                          className="mt-8 text-[9px] font-black uppercase text-slate-500 hover:text-white transition-colors border-t border-slate-800 pt-6 block"
+                        >
+                          Re-analyze with new parameters
+                        </button>
+                     </div>
+                   ) : (
+                     <button onClick={generateDeepIntel} className="w-full h-40 border-2 border-dashed border-slate-800 rounded-[2rem] text-slate-500 font-bold hover:bg-slate-900 transition-all">
+                       Initialize Deep Intelligence Engine
+                     </button>
+                   )}
                 </div>
               )}
 
