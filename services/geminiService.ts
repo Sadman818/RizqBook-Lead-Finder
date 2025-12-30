@@ -4,8 +4,16 @@ import { LeadSearchResult, LeadPriorityTag, LeadStatus, GroundingSource } from "
 export class GeminiService {
   /**
    * Fetches leads using the Google GenAI SDK with Maps Grounding.
+   * @param modelName The specific model name to use for generation
+   * @param thinkingBudget Reasoning token budget (Gemini 2.5 series supports up to 24576)
    */
-  async fetchLeads(location: string, radius: number, categories: string[]): Promise<LeadSearchResult> {
+  async fetchLeads(
+    location: string, 
+    radius: number, 
+    categories: string[], 
+    modelName: string = "gemini-2.5-flash",
+    thinkingBudget: number = 0
+  ): Promise<LeadSearchResult> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const prompt = `
@@ -46,12 +54,13 @@ export class GeminiService {
 
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: modelName,
         contents: prompt,
         config: {
           // Maps grounding is only supported in Gemini 2.5 series models.
-          // Note: responseMimeType and responseSchema are NOT used with tools.
           tools: [{ googleMaps: {} }],
+          // Thinking config enables internal reasoning for more complex extraction logic.
+          thinkingConfig: { thinkingBudget: thinkingBudget }
         },
       });
 
@@ -74,7 +83,6 @@ export class GeminiService {
               uri: chunk.maps.uri
             };
             
-            // Extract review snippets if available
             if (chunk.maps.placeAnswerSources?.reviewSnippets) {
               source.reviewSnippets = chunk.maps.placeAnswerSources.reviewSnippets.map((s: any) => s.text);
             }
@@ -86,7 +94,6 @@ export class GeminiService {
 
       // Map leads and attach potential source info
       data.leads = (data.leads || []).map((l: any, idx: number) => {
-        // Attempt to associate a specific source URI to a lead if titles match closely
         const matchingSource = sources.find(s => 
           s.title.toLowerCase().includes(l.businessName.toLowerCase()) || 
           l.businessName.toLowerCase().includes(s.title.toLowerCase())

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import LeadSearchForm from './components/LeadSearchForm';
 import LeadCardContainer from './components/LeadCardContainer';
@@ -6,20 +5,6 @@ import AnalysisView from './components/AnalysisView';
 import BulkOutreach from './components/BulkOutreach';
 import { geminiService } from './services/geminiService';
 import { LeadSearchResult, Lead, LeadStatus, LeadPriorityTag, BusinessCategory } from './types';
-
-// Define the AIStudio interface as expected by the environment to ensure type compatibility.
-interface AIStudio {
-  hasSelectedApiKey: () => Promise<boolean>;
-  openSelectKey: () => Promise<void>;
-}
-
-declare global {
-  interface Window {
-    // Property must use the named AIStudio interface and include the optionality modifier
-    // to align with environmental declarations and avoid "identical modifiers" errors.
-    aistudio?: AIStudio;
-  }
-}
 
 const App: React.FC = () => {
   const [results, setResults] = useState<LeadSearchResult | null>(null);
@@ -29,6 +14,9 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<'scan' | 'crm' | 'bulk'>('scan');
   const [displayMode, setDisplayMode] = useState<'grid' | 'map'>('grid');
   const [hasApiKey, setHasApiKey] = useState<boolean>(true);
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash');
+  const [thinkingBudget, setThinkingBudget] = useState<number>(0);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Filters
   const [filterTag, setFilterTag] = useState<LeadPriorityTag | 'ALL'>('ALL');
@@ -36,9 +24,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkApiKey = async () => {
-      if (window.aistudio) {
+      const aistudio = (window as any).aistudio;
+      if (aistudio) {
         try {
-          const hasKey = await window.aistudio.hasSelectedApiKey();
+          const hasKey = await aistudio.hasSelectedApiKey();
           setHasApiKey(hasKey);
         } catch (e) {
           console.error("Error checking API key status:", e);
@@ -60,10 +49,11 @@ const App: React.FC = () => {
   }, [savedLeads]);
 
   const handleSelectKey = async () => {
-    if (window.aistudio) {
+    const aistudio = (window as any).aistudio;
+    if (aistudio) {
       try {
-        await window.aistudio.openSelectKey();
-        setHasApiKey(true); // Assume success per race condition instructions
+        await aistudio.openSelectKey();
+        setHasApiKey(true);
         setError(null);
       } catch (e) {
         console.error("Error opening key selector:", e);
@@ -72,16 +62,16 @@ const App: React.FC = () => {
   };
 
   const handleSearch = async (city: string, radius: number, categories: string[]) => {
-    if (!hasApiKey && window.aistudio) {
+    const aistudio = (window as any).aistudio;
+    if (!hasApiKey && aistudio) {
       await handleSelectKey();
-      // Even after selection, we proceed. If it still fails, the error handler will catch it.
     }
 
     setIsLoading(true);
     setError(null);
     setResults(null);
     try {
-      const data = await geminiService.fetchLeads(city, radius, categories);
+      const data = await geminiService.fetchLeads(city, radius, categories, selectedModel, thinkingBudget);
       setResults(data);
       setActiveView('scan');
       
@@ -94,12 +84,11 @@ const App: React.FC = () => {
       const errMsg = err.message || "Search failed.";
       setError(errMsg);
       
-      // Specifically handle the case where the key might be invalid or missing despite selection
       if (
         (errMsg.includes("Requested entity was not found") || 
          errMsg.includes("API Key must be set") || 
          errMsg.includes("API_KEY_INVALID")) && 
-        window.aistudio
+        (window as any).aistudio
       ) {
         setHasApiKey(false);
         setError("API key issue detected. Please select a valid key from a paid GCP project.");
@@ -136,7 +125,6 @@ const App: React.FC = () => {
     link.click();
   };
 
-  // Best Time Widget Logic (Dhaka Time is UTC+6)
   const isOptimalTime = useMemo(() => {
     const dhakaHour = (new Date().getUTCHours() + 6) % 24;
     return dhakaHour >= 10 && dhakaHour <= 18;
@@ -158,23 +146,71 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-6">
-            {!hasApiKey && window.aistudio && (
-              <div className="flex items-center gap-3">
-                <a 
-                  href="https://ai.google.dev/gemini-api/docs/billing" 
-                  target="_blank" 
-                  className="hidden md:block text-[9px] font-black uppercase text-slate-500 hover:text-slate-300 transition-colors"
-                >
-                  Billing Docs
-                </a>
-                <button 
-                  onClick={handleSelectKey}
-                  className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest animate-pulse transition-all shadow-lg shadow-amber-900/20"
-                >
-                  Configure API Key
-                </button>
-              </div>
-            )}
+            <div className="relative">
+              <button 
+                onClick={() => setShowSettings(!showSettings)}
+                className={`p-2.5 rounded-xl border border-slate-800 transition-all ${showSettings ? 'bg-slate-800 text-blue-400' : 'bg-slate-900/50 text-slate-500 hover:text-slate-300'}`}
+                title="AI Configuration & API Key"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              </button>
+
+              {showSettings && (
+                <div className="absolute right-0 mt-4 w-80 bg-[#0f172a] border border-slate-800 rounded-3xl shadow-2xl p-6 z-[70] animate-in slide-in-from-top-2 duration-200">
+                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">AI Engine Config</h4>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <label className="text-[9px] font-black text-slate-600 uppercase mb-2 block">Inference Model</label>
+                      <select 
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-300 outline-none focus:ring-1 focus:ring-blue-600"
+                      >
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Balanced)</option>
+                        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Speed)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <label className="text-[9px] font-black text-slate-600 uppercase block">AI Logic Depth</label>
+                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${thinkingBudget > 12000 ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                          {thinkingBudget === 0 ? 'FAST' : thinkingBudget <= 12000 ? 'BALANCED' : 'DEEP'}
+                        </span>
+                      </div>
+                      <input 
+                        type="range"
+                        min="0"
+                        max="24576"
+                        step="1024"
+                        value={thinkingBudget}
+                        onChange={(e) => setThinkingBudget(parseInt(e.target.value))}
+                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                      <div className="flex justify-between mt-2 text-[8px] font-black text-slate-600 uppercase">
+                        <span>Speed</span>
+                        <span>Reasoning</span>
+                      </div>
+                      <p className="text-[8px] text-slate-500 mt-2 italic leading-relaxed">
+                        High reasoning helps identify software use cases from review patterns.
+                      </p>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-800">
+                      <label className="text-[9px] font-black text-slate-600 uppercase mb-3 block">Authentication</label>
+                      <button 
+                        onClick={() => { handleSelectKey(); setShowSettings(false); }}
+                        className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${hasApiKey ? 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white' : 'bg-amber-600 text-white shadow-lg shadow-amber-900/20 animate-pulse'}`}
+                      >
+                        {hasApiKey ? 'Update API Key' : 'Connect Account'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <nav className="hidden lg:flex bg-slate-900/50 p-1 rounded-xl border border-slate-800">
               <button onClick={() => setActiveView('scan')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'scan' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Discovery</button>
               <button onClick={() => setActiveView('bulk')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'bulk' ? 'bg-red-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Bulk Outreach</button>
